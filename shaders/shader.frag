@@ -51,7 +51,7 @@ float rastrigin(vec2 c){
     x = x*x - 10. * cos(2. * pi * x) + 10.;
     y = y*y - 10. * cos(2. * pi * y) + 10.;
 
-    return (x + y )/100.; // set the minimum to 0+ 20.91
+    return (x + y )/50.; // set the minimum to 0+ 20.91
 }
 
 float ackley(vec2 c){
@@ -79,7 +79,7 @@ float rosenbrock(vec2 c){
 
     float f = 100. * (y - x * x) * (y - x * x) + (1. - x) * (1. - x);
 
-    return f/100000.;
+    return f/1000000.;
 }
 
 float schwefel(vec2 c){
@@ -167,10 +167,10 @@ float fun_selection(vec2 c){
     float f = 0.0;
 
     // f = sphere(c);
-    // f = rastrigin(c);
+    f = rastrigin(c);
     // f = ackley(c);
     // f = griewank(c);
-    f = rosenbrock(c);
+    // f = rosenbrock(c);
     // f = schwefel(c);
     // f = bukin(c);
     // f = drop_wave(c);
@@ -215,23 +215,24 @@ float sdBox( vec3 p, vec3 b)
 // map the world
 float map(in vec3 p)
 {
-    float plane = (p.y - fun_selection(p.xz) * exp(zoom*0.1)) * res; //res;
+    float plane = (p.y - fun_selection(p.xz) * exp(zoom*0.1));
     // float sphere = sdSphere(p, vec3(0.0, 1.0, 0.0), 0.5);
     // float d = min(plane,sphere);
     return plane;
 }
 
-vec4 map_with_gradient(in vec3 p, in vec3 dir)
+vec2 map_with_gradient(in vec3 p, in vec3 dir)
 {
     float d1 = (p.y - fun_selection(p.xz) * exp(zoom*0.1));
     vec3 next = p+dir*SURF_DISTANCE*0.5;
     float d2 = (p.y - fun_selection(next.xz) * exp(zoom*0.1));
 
-    // float grad = (d2-d1)/(SURF_DISTANCE*0.5);
-    next.y -= d2;
+    float grad = (d2-d1)/(SURF_DISTANCE*0.5);
+    // next.y -= d2;
 
-    return vec4(d1, next);
+    return vec2(d1, grad);
 }
+
 
 vec3 get_normal(vec3 p){
 	//sampling around the point
@@ -257,17 +258,18 @@ vec2 ray_march(in vec3 ro, in vec3 rd, int MAX_STEPS)
 
         float distance_to_closest = map(curr_pos);
 
-        dist_origin += distance_to_closest;
+        dist_origin += distance_to_closest * res;
 
         if (dist_origin < 5. && min_dist > distance_to_closest){
             min_dist = distance_to_closest;
         }
 
-        if (abs(dist_origin) < SURF_DISTANCE || dist_origin > MAX_DISTANCE) break;
+        if (abs(distance_to_closest) < SURF_DISTANCE*0.1 || dist_origin > MAX_DISTANCE) break;
     }
 
     return vec2(dist_origin, min_dist);
 }
+
 
 vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
 {
@@ -278,22 +280,18 @@ vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
     {
         vec3 curr_pos = ro + dist_origin * rd;
 
-        vec4 m_out = map_with_gradient(curr_pos, rd);
+        float distance_to_closest = map(curr_pos);
 
-        float distance_to_closest = m_out.x;
-        vec3 next = m_out.yzw;
-        vec3 p = curr_pos;
-        p.y -= distance_to_closest;
-        
-
-
-        dist_origin += distance_to_closest;
+        float _step = distance_to_closest;
+        if (_step < 2.)
+            _step *= 0.1;
+        dist_origin += _step;
 
         if (dist_origin < 5. && min_dist > distance_to_closest){
             min_dist = distance_to_closest;
         }
 
-        if (abs(dist_origin) < SURF_DISTANCE || dist_origin > MAX_DISTANCE) break;
+        if (abs(distance_to_closest) < SURF_DISTANCE || dist_origin > MAX_DISTANCE) break;
     }
 
     return vec2(dist_origin, min_dist);
@@ -303,7 +301,9 @@ float GetLight(vec3 p, vec3 n) {
     vec3 l = normalize(light_position - p);
     
     float dif = clamp(dot(n, l) * .5 + .5, 0., 1.);
-    vec2 rm_out = ray_march(p + n * SURF_DISTANCE * 2.01, l, 128);
+
+    // Shadows Computation
+    vec2 rm_out = ray_march(p + n * SURF_DISTANCE * 2.01, l, 64);
     float d = rm_out.x;
     float min_dist = rm_out.y;
     if(d < length(light_position - p)) {

@@ -1,4 +1,3 @@
-import moderngl
 import numpy as np
 from Window import Example
 from Controls import CameraControl, ShaderControl
