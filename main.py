@@ -53,7 +53,7 @@ class FunctionRender(Example):
         self.camera_position = program.get("camera_position", [0.0, 1.0, -2.0])
         self.camera_target = program.get("camera_target", [0.0, 1.0, 0.0])
         self.cm = CameraControl(self.camera_position, self.camera_target)
-        self.sc = ShaderControl(program["color_range"], program["res"])
+        self.sc = ShaderControl([program["color_range"], program["res"]], ["<", ">", "pu", "pd"])
         self.mouse = np.array([0.0, 0.0])
 
     def render(self, time: float, frame_time: float):
@@ -90,8 +90,8 @@ class FunctionRender(Example):
         if action == keys.ACTION_PRESS:
             if key == keys.SPACE:
                 self.cm.speed = 0.5
-                self.sc.cr_speed = 1.5
-                self.sc.res_speed = 1.1
+                self.sc.set_speed(">", 1.5)
+                self.sc.set_speed("pu", 1.1)
             if key == keys.W:
                 self.cm.key_event("W")
             if key == keys.A:
@@ -121,8 +121,7 @@ class FunctionRender(Example):
         elif action == self.wnd.keys.ACTION_RELEASE:
             if key == keys.SPACE:
                 self.cm.speed = 0.1
-                self.sc.cr_speed = 1.0
-                self.sc.res_speed = 1.0
+                self.sc.set_all_speeds(1.0)
             if key == keys.W:
                 self.cm.key_event("W", False)
             if key == keys.A:

@@ -99,49 +99,41 @@ class CameraControl:
         return vec / norm
 
 
+import operator
 # TODO make this fps independent
 class ShaderControl:
-    def __init__(self, glsl_color_range, glsl_resolution):
-        self.key_press = {
-            "<": [False, self.increase_color_range],
-            ">": [False, self.decrease_color_range],
-            "pu": [False, self.increase_resolution],
-            "pd": [False, self.decrease_resolution],
-        }
-        self.color_range = glsl_color_range.value
-        self.glsl_color_range = glsl_color_range
-        self.cr_speed = 1.0
-        self.resolution = glsl_resolution.value
-        self.glsl_resolution = glsl_resolution
-        self.res_speed = 1.0
+    def __init__(self, glsl_control_list, symbols_list):
+        self.key_press = { key:False for key in symbols_list }
+
+        self.ctrl_list = []
+        for i, glsl_control in enumerate(glsl_control_list):
+            self.ctrl_list.append({"glsl": glsl_control, "value": glsl_control.value, "speed": 1.0})
+
+        # invert symbols_list dict
+        self.symbols_dict = {}
+        for i, sym in enumerate(symbols_list):
+            self.symbols_dict[sym] = i
 
     def key_event(self, key, press=True):
-        if press:
-            self.key_press[key][0] = True
-        else:
-            self.key_press[key][0] = False
+        self.key_press[key] = True if press else False
 
-    def increase_color_range(self):
-        self.color_range *= 1.01 * self.cr_speed
-        self.glsl_color_range.value = self.color_range
+    def set_all_speeds(self, speed):
+        for ctrl in self.ctrl_list:
+            ctrl["speed"] = speed
 
+    def set_speed(self, symbol, speed):
+        ctrl = self.ctrl_list[self.symbols_dict[symbol]//2]
+        ctrl["speed"] = speed
+    
+    def update_symbol(self, symbol):
+        decrease = self.symbols_dict[symbol] % 2 == 1
+        op = operator.itruediv if decrease else operator.imul
 
-    def decrease_color_range(self):
-        self.color_range /= 1.01 * self.cr_speed
-        self.glsl_color_range.value = self.color_range
-
-    def increase_resolution(self):
-        self.resolution /= 1.01 * self.res_speed
-        self.glsl_resolution.value = self.resolution
-        print(f"resolution: {self.resolution:.2f}", end="\r")
-
-
-    def decrease_resolution(self):
-        self.resolution *= 1.01 * self.res_speed
-        self.glsl_resolution.value = self.resolution
-        print(f"resolution: {self.resolution:.2f}", end="\r")
+        ctrl = self.ctrl_list[self.symbols_dict[symbol]//2]
+        ctrl["value"] = op(ctrl["value"], 1.01 * ctrl["speed"])
+        ctrl["glsl"].value = ctrl["value"]
 
     def update(self):
         for key in self.key_press:
-            if self.key_press[key][0]:
-                self.key_press[key][1]()
+            if self.key_press[key]:
+                self.update_symbol(key)
