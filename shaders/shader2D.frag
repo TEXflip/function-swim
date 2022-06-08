@@ -10,7 +10,8 @@ uniform float res = 0.5;
 in vec2 v_uv;
 // out color
 out vec4 out_color;
-const float pi = 3.1415926535;
+const float pi = 3.1415926535897932384626433832795;
+const float sqrt2 = 1.4142135623730950488016887242097;
 
 vec3 cm_viridis(float t) {
     if (abs(t-0.5) > 0.5)
@@ -43,14 +44,152 @@ vec3 cm_magma(float t) {
     return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
 }
 
+// functions of optimization problems
+
+float sphere(vec2 c){
+    float x = c.x;
+    float y = c.y;
+    float f = x*x + y*y;
+    return f/1000.;
+}
+
 float rastrigin(vec2 c){
     float x = c.x;
     float y = c.y;
 
-    x = x*x - 10 * cos(2 * pi * x) + 10;
-    y = y*y - 10 * cos(2 * pi * y) + 10;
+    x = x*x - 10. * cos(2. * pi * x) + 10.;
+    y = y*y - 10. * cos(2. * pi * y) + 10.;
 
-    return (x + y)/100.;
+    return (x + y )/50.; // set the minimum to 0+ 20.91
+}
+
+float ackley(vec2 c){
+    float x = c.x;
+    float y = c.y;
+
+    float f = -20. * exp(-0.2 * sqrt(0.5 * (x * x + y * y))) - exp(0.5 * (cos(2. * pi * x) + cos(2. * pi * y))) + exp(1.) + 20.;
+
+    return f/2.;
+}
+
+float griewank(vec2 c){
+    float x = c.x;
+    float y = c.y;
+
+    float f = 1. + (x * x / 4000.) + (y * y / 4000.) - cos(x) * cos(y / sqrt2);
+
+    return f * 2.;
+}
+
+float rosenbrock(vec2 c){
+    c += 1.;  // center the optimial value to (0,0)
+    float x = c.x;
+    float y = c.y;
+
+    float f = 100. * (y - x * x) * (y - x * x) + (1. - x) * (1. - x);
+
+    return f/1000000.;
+}
+
+float schwefel(vec2 c){
+    c += 420.968746; // center the optimial value to (0,0)
+    float x = c.x;
+    float y = c.y;
+
+    float f = 418.9829 * 2. - x * sin(sqrt(abs(x))) - y * sin(sqrt(abs(y)));
+
+    return f/50.;
+}
+
+float bukin(vec2 c){
+    float x = c.x - 10.;
+    float y = c.y + 1.;
+
+    float f = 100. * sqrt(abs(y - 0.01 * x * x)) + 0.01 * abs(x + 10.);
+
+    return f/50.;
+}
+
+float drop_wave(vec2 c){
+    float x = c.x;
+    float y = c.y;
+
+    float f = -(1.+ cos(12. * sqrt(x * x + y * y))) / (0.5 * (x * x + y * y) + 2.);
+
+    return (f+1.)/5.;
+}
+
+float eggholder(vec2 c){
+    // usually evaluated on the square xi ∈ [-512, 512], so there are better minimas outside the square
+    // and the colors are not good
+    float x = c.x + 512.;
+    float y = c.y + 404.2319;
+
+    float f = -(y + 47.) * sin(sqrt(abs(x / 2. + y + 47.))) - x * sin(sqrt(abs(x - (y + 47.))));
+
+    return (f + 959.6407)/50.;
+}
+
+float holder_table(vec2 c){
+    // dont go outside xi ∈ [-10, 10] !!!
+    float x = c.x + 8.05502;
+    float y = c.y + 9.66459;
+
+    float f = -abs(sin(x) * cos(y) * exp(abs(1. - sqrt(x * x + y * y) / pi)));
+
+    return (f+19.2085)/5.;
+}
+
+float shaffer(vec2 c){
+    float x = c.x;
+    float y = c.y;
+
+    float f = 0.5 + (sin(x + y) + (x - y) * (x - y) - 0.5 * (x + y)) * (sin(x + y) + (x - y) * (x - y) - 0.5 * (x + y)) / (1. + 0.001 * (x + y) * (x + y));
+
+    return f/100.;
+}
+
+float custom_copilot(vec2 c){
+    c /= 10.;
+    float x = c.x;
+    float y = c.y;
+
+    float f = (sin(x) - x * cos(x)) * (sin(y) - y * cos(y)) * (sin(x + y) - (x + y) * cos(x + y));
+
+    return f/100.;
+}
+
+float shuberts(vec2 c){
+    float x = c.x;
+    float y = c.y;
+
+    float f1 = 0., f2 = 0.;
+    for(float i = 1.; i < 6.; i+=1.){
+        f1 += i*cos((i+1.)*x + i);
+        f2 += i*cos((i+1.)*y + i);
+    }
+
+    return (f1*f2)/200.;
+}
+
+float fun_selection(vec2 c){
+    float f = 0.0;
+
+    // f = sphere(c);
+    // f = rastrigin(c);
+    // f = ackley(c);
+    // f = griewank(c);
+    f = rosenbrock(c);
+    // f = schwefel(c);
+    // f = bukin(c);
+    // f = drop_wave(c);
+    // f = eggholder(c);
+    // f = holder_table(c);
+    // f = shaffer(c);
+    // f = custom_copilot(c);
+    // f = shuberts(c);
+
+    return f;
 }
 
 void main()
@@ -60,7 +199,7 @@ void main()
     vec2 uv = (v_uv - 0.5) * aspect_ratio * abs(zoom);
     uv += m * aspect_ratio;
 
-    vec3 col = cm_viridis(rastrigin(uv) * color_range);
+    vec3 col = cm_viridis(fun_selection(uv) * color_range);
 
     out_color = vec4(col, 1.0);
 }
