@@ -1,8 +1,10 @@
 #version 430
 uniform float T;
-uniform float aspect_ratio;
-uniform vec2 mouse;
-uniform float zoom;
+uniform vec2 aspect_ratio = vec2(16.,9.)/9.;
+uniform vec2 mouse = vec2(0.,0.);
+uniform float zoom = 20.;
+uniform float color_range = 0.5;
+uniform float res = 0.5;
 
 // in vec2 v_uv: screen space coordniate
 in vec2 v_uv;
@@ -11,6 +13,8 @@ out vec4 out_color;
 const float pi = 3.1415926535;
 
 vec3 cm_viridis(float t) {
+    if (abs(t-0.5) > 0.5)
+        return vec3(1.);
 
     const vec3 c0 = vec3(0.2777273272234177, 0.005407344544966578, 0.3340998053353061);
     const vec3 c1 = vec3(0.1050930431085774, 1.404613529898575, 1.384590162594685);
@@ -20,14 +24,13 @@ vec3 cm_viridis(float t) {
     const vec3 c5 = vec3(4.776384997670288, -13.74514537774601, -65.35303263337234);
     const vec3 c6 = vec3(-5.435455855934631, 4.645852612178535, 26.3124352495832);
 
-    if (t > 1.0)
-        return vec3(1.);
-
     return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
 
 }
 
 vec3 cm_magma(float t) {
+    if (abs(t-0.5) > 0.5)
+        return vec3(1.);
 
     const vec3 c0 = vec3(-0.002136485053939582, -0.000749655052795221, -0.005386127855323933);
     const vec3 c1 = vec3(0.2516605407371642, 0.6775232436837668, 2.494026599312351);
@@ -47,16 +50,17 @@ float rastrigin(vec2 c){
     x = x*x - 10 * cos(2 * pi * x) + 10;
     y = y*y - 10 * cos(2 * pi * y) + 10;
 
-    return (x + y - 20.91)/100.;
+    return (x + y)/100.;
 }
 
 void main()
 {
     vec2 m = mouse;
-    vec2 uv = (v_uv - 0.5) * zoom;
-    uv.x *= aspect_ratio;
+    m.x *=-1;
+    vec2 uv = (v_uv - 0.5) * aspect_ratio * abs(zoom);
+    uv += m * aspect_ratio;
 
-    vec3 col = cm_viridis(rastrigin(uv));
+    vec3 col = cm_viridis(rastrigin(uv) * color_range);
 
     out_color = vec4(col, 1.0);
 }
