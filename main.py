@@ -57,7 +57,7 @@ class FunctionRender(Example):
         self.mouse = np.array([0.0, 0.0])
 
     def render(self, time: float, frame_time: float):
-        self.u_time.value = time
+        # self.u_time.value = time
         self.cm.update()
         self.sc.update()
         self.vao.render()

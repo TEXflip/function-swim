@@ -102,7 +102,7 @@ class CameraControl:
 import operator
 # TODO make this fps independent
 class ShaderControl:
-    def __init__(self, glsl_control_list, symbols_list):
+    def __init__(self, glsl_control_list: list, symbols_list: list):
         self.key_press = { key:False for key in symbols_list }
 
         self.ctrl_list = []
@@ -137,3 +137,9 @@ class ShaderControl:
         for key in self.key_press:
             if self.key_press[key]:
                 self.update_symbol(key)
+                self.print_value(key)
+    
+    def print_value(self, key):
+        ctrl = self.ctrl_list[self.symbols_dict[key]//2]
+        spaces = " "*80
+        print(f"{ctrl['glsl'].name}: {ctrl['value']}{spaces}", end="\r")

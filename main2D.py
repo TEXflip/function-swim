@@ -48,9 +48,11 @@ class FunctionRender(Example):
         # User Controls Variables
         self.mouse = program.get("mouse", [0.0,0.0])
         self.zoom = program.get("zoom", 1.)
+        self.render_mode = program.get("render_mode", 0.)
         self.last_position = np.array(self.window_size)/2
+        self.current_position = self.last_position
         self.click_position = np.array([0.0, 0.0])
-        self.sc = ShaderControl([program["color_range"]], {">", "<"})
+        self.sc = ShaderControl([program["color_range"]], [">", "<", "pu", "pd"])
 
     def render(self, time: float, frame_time: float):
         # self.u_time.value = time
@@ -87,6 +89,18 @@ class FunctionRender(Example):
                 self.sc.key_event(">")
             if key == keys.COMMA:
                 self.sc.key_event("<")
+            if key == keys.NUMPAD_0:
+                self.render_mode.value = 0
+            if key == keys.NUMPAD_1:
+                self.render_mode.value = 1
+            if key == keys.NUMPAD_2:
+                self.render_mode.value = 2
+            if key == keys.NUMPAD_3:
+                self.render_mode.value = 3
+            if key== keys.PAGE_UP:
+                self.sc.key_event("pu")
+            if key== keys.PAGE_DOWN:
+                self.sc.key_event("pd")
 
         # Key releases
         elif action == self.wnd.keys.ACTION_RELEASE:
@@ -96,6 +110,10 @@ class FunctionRender(Example):
                 self.sc.key_event(">", False)
             if key == keys.COMMA:
                 self.sc.key_event("<", False)
+            if key== keys.PAGE_UP:
+                self.sc.key_event("pu", False)
+            if key== keys.PAGE_DOWN:
+                self.sc.key_event("pd", False)
 
 
 
