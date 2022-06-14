@@ -4,7 +4,8 @@ uniform vec2 aspect_ratio = vec2(16.,9.)/9.;
 uniform vec2 mouse = vec2(0.,0.);
 uniform float zoom = 20.;
 uniform float color_range = 0.5;
-uniform float res = 1.;
+// uniform float color_shift = 0.;
+uniform int fun_select = 0;
 
 
 // 0 = only function
@@ -173,8 +174,8 @@ vec2 drop_wave(vec2 c){
 
     float d1 = (1 + cos(12*sqrt(x*x + y*y)) + ((24 + 6*x*x + 6*y*y)*sin(12*sqrt(x*x + y*y)))/sqrt(x*x + y*y));
     float d2 = pow((2 + 0.5*(x*x + y*y)), 2);
-    float dx = (x*dd)/d2;
-    float dy = (y*dd)/d2;
+    float dx = (x*d1)/d2;
+    float dy = (y*d2)/d2;
     float grad = sqrt(dx*dx + dy*dy);
 
     return vec2(f+1., grad)/5.;
@@ -283,23 +284,50 @@ vec2 katsuura(vec2 c){
     // return 0.;
 }
 
+// non derivable function in any point, ray marching doesn't work well
+vec2 weierstrass(vec2 c){
+    float x = c.x;
+    float y = c.y;
+    const float inv_arr2k[12] = float[12](1.0,0.5,0.25,0.125,0.0625,0.03125,0.015625,0.0078125,0.00390625,0.001953125,0.0009765625,0.00048828125);
+    const float arr3k[12] = float[12](1.,3.,9.,27.,81.,243.,729.,2187.,6561.,19683.,59049.,177147.);
+
+    float x1 = 2 * PI * (x + .5);
+    float y1 = 2 * PI * (y + .5);
+
+    float x2 = 0., y2 = 0.;
+    for (int i = 0; i < 12; i++){
+        x2 += inv_arr2k[i] * cos(x1 * arr3k[i]);
+        y2 += inv_arr2k[i] * cos(y1 * arr3k[i]);
+    }
+
+    float f = ((x2 + y2) * 0.5 + 1.99951171875);
+    f = 10. * f*f*f;
+
+    return vec2(f * 0.0005, 1.);
+}
+
 vec2 fun_selection(vec2 c){
     vec2 f = vec2(0.);
 
-    // f = sphere(c);
-    // f = rastrigin(c);
-    // f = ackley(c);
-    // f = griewank(c);
-    // f = rosenbrock(c);
-    // f = schwefel(c);
-    // f = bukin(c);
-    // f = drop_wave(c);
-    // f = eggholder(c);
-    // f = holder_table(c);
-    // f = shaffer(c);
-    // f = custom_copilot(c);
-    // f = shuberts(c);
-    f = katsuura(c);
+    // unfortunately GLSL doesn't support function pointers
+    // so we have to use switch statement :<
+    switch(fun_select){ 
+        case 0 : f = rastrigin(c); break;
+        case 1 : f = ackley(c); break;
+        case 2 : f = griewank(c); break;
+        case 3 : f = rosenbrock(c); break;
+        case 4 : f = schwefel(c); break;
+        case 5 : f = bukin(c); break;
+        case 6 : f = drop_wave(c); break;
+        case 7 : f = eggholder(c); break;
+        case 8 : f = holder_table(c); break;
+        case 9 : f = shaffer(c); break;
+        case 10 : f = custom_copilot(c); break;
+        case 11 : f = shuberts(c); break;
+        case 12 : f = katsuura(c); break;
+        case 13 : f = weierstrass(c); break;
+        default : f = sphere(c); break;
+    }
 
     return f;
 }

@@ -137,6 +137,14 @@ class ShaderControl:
         ctrl["value"] = op(ctrl["value"], 1.01 * ctrl["speed"])
         ctrl["glsl"].value = ctrl["value"]
     
+    def update_type_lin(self, symbol):
+        symb = self.symbols_dict[symbol]
+        op = operator.isub if "decr"==symb["action"] else operator.iadd
+
+        ctrl = self.control_dict[symb["key"]]
+        ctrl["value"] = op(ctrl["value"], 0.001 * ctrl["speed"])
+        ctrl["glsl"].value = ctrl["value"]
+    
     def update_type_switch(self, symbol):
         symb = self.symbols_dict[symbol]
         ctrl = self.control_dict[symb["key"]]

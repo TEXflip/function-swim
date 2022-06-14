@@ -52,7 +52,20 @@ class FunctionRender(Example):
         self.last_position = np.array(self.window_size)/2
         self.current_position = self.last_position
         self.click_position = np.array([0.0, 0.0])
-        self.sc = ShaderControl([program["color_range"]], [">", "<", "pu", "pd"])
+        sc_dict = {
+            "color_range": {
+                "glsl": program["color_range"],
+                "symbol": [",", "."],
+                "type": "exp"
+            },
+            "fun_select": {
+                "glsl": program["fun_select"],
+                "symbol": "/",
+                "type": "switch",
+                "range": [0,14]
+            }
+        }
+        self.sc = ShaderControl(sc_dict)
 
     def render(self, time: float, frame_time: float):
         # self.u_time.value = time
@@ -85,10 +98,6 @@ class FunctionRender(Example):
         if action == keys.ACTION_PRESS:
             if key == keys.SPACE:
                 self.sc.set_all_speeds(1.5)
-            if key == keys.PERIOD:
-                self.sc.key_event(">")
-            if key == keys.COMMA:
-                self.sc.key_event("<")
             if key == keys.NUMPAD_0:
                 self.render_mode.value = 0
             if key == keys.NUMPAD_1:
@@ -97,23 +106,13 @@ class FunctionRender(Example):
                 self.render_mode.value = 2
             if key == keys.NUMPAD_3:
                 self.render_mode.value = 3
-            if key== keys.PAGE_UP:
-                self.sc.key_event("pu")
-            if key== keys.PAGE_DOWN:
-                self.sc.key_event("pd")
+            self.sc.key_event(key)
 
         # Key releases
         elif action == self.wnd.keys.ACTION_RELEASE:
             if key == keys.SPACE:
                 self.sc.set_all_speeds(1.0)
-            if key == keys.PERIOD:
-                self.sc.key_event(">", False)
-            if key == keys.COMMA:
-                self.sc.key_event("<", False)
-            if key== keys.PAGE_UP:
-                self.sc.key_event("pu", False)
-            if key== keys.PAGE_DOWN:
-                self.sc.key_event("pd", False)
+            self.sc.key_event(key, False)
 
 
 
