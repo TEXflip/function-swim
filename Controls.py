@@ -1,7 +1,6 @@
 import numpy as np
 
-
-# TODO this camera control system is bad, fix it
+# TODO this camera control system is bad written
 class CameraControl:
     def __init__(self, glsl_camera_pos, glsl_target_pos):
         self.key_press = {
@@ -102,44 +101,77 @@ class CameraControl:
 import operator
 # TODO make this fps independent
 class ShaderControl:
-    def __init__(self, glsl_control_list: list, symbols_list: list):
-        self.key_press = { key:False for key in symbols_list }
-
-        self.ctrl_list = []
-        for i, glsl_control in enumerate(glsl_control_list):
-            self.ctrl_list.append({"glsl": glsl_control, "value": glsl_control.value, "speed": 1.0})
-
-        # invert symbols_list dict
+    def __init__(self, glsl_control_dict: dict):
+        self.control_dict = glsl_control_dict
         self.symbols_dict = {}
-        for i, sym in enumerate(symbols_list):
-            self.symbols_dict[sym] = i
+        for k, v in self.control_dict.items():
+            s = v["symbol"]
+            if isinstance(s, list):
+                self.symbols_dict[s[0]] = {"type": v["type"], "key": k, "press": False, "action": "incr"}
+                self.symbols_dict[s[1]] = {"type": v["type"], "key": k, "press": False, "action": "decr"}
+            elif isinstance(s, str):
+                self.symbols_dict[s] = {"type": v["type"], "key": k, "press": False, "action": None}
+
+            self.control_dict[k]["value"] = glsl_control_dict[k]["glsl"].value
+            self.control_dict[k]["speed"] = 1.0
 
     def key_event(self, key, press=True):
-        self.key_press[key] = True if press else False
+        if isinstance(key, int):
+            key = key_to_symbol(key)
+        if key in self.symbols_dict:
+            self.symbols_dict[key]["press"] = True if press else False
 
     def set_all_speeds(self, speed):
-        for ctrl in self.ctrl_list:
+        for ctrl in self.control_dict.values():
             ctrl["speed"] = speed
 
     def set_speed(self, symbol, speed):
-        ctrl = self.ctrl_list[self.symbols_dict[symbol]//2]
+        ctrl = self.control_dict[self.symbols_dict[symbol]["key"]]
         ctrl["speed"] = speed
     
-    def update_symbol(self, symbol):
-        decrease = self.symbols_dict[symbol] % 2 == 1
-        op = operator.itruediv if decrease else operator.imul
+    def update_type_exp(self, symbol):
+        symb = self.symbols_dict[symbol]
+        op = operator.itruediv if "decr"==symb["action"] else operator.imul
 
-        ctrl = self.ctrl_list[self.symbols_dict[symbol]//2]
+        ctrl = self.control_dict[symb["key"]]
         ctrl["value"] = op(ctrl["value"], 1.01 * ctrl["speed"])
         ctrl["glsl"].value = ctrl["value"]
+    
+    def update_type_switch(self, symbol):
+        symb = self.symbols_dict[symbol]
+        ctrl = self.control_dict[symb["key"]]
+        r = ctrl["range"]
+        ctrl["value"] = r[0] + ((ctrl["value"] + 1) % (r[1]+1))
+        ctrl["glsl"].value = ctrl["value"]
+        symb["press"] = False
 
     def update(self):
-        for key in self.key_press:
-            if self.key_press[key]:
-                self.update_symbol(key)
-                self.print_value(key)
+        for symbol in self.symbols_dict.keys():
+            if self.symbols_dict[symbol]["press"]:
+                self.__getattribute__(f"update_type_{self.symbols_dict[symbol]['type']}")(symbol)
+                self.print_value(symbol)
     
-    def print_value(self, key):
-        ctrl = self.ctrl_list[self.symbols_dict[key]//2]
+    def print_value(self, symbol):
+        ctrl = self.control_dict[self.symbols_dict[symbol]["key"]]
         spaces = " "*80
         print(f"{ctrl['glsl'].name}: {ctrl['value']}{spaces}", end="\r")
+
+def key_to_symbol(key):
+    if key >= 97 and key <= 122:
+        return str(chr(key)).upper()
+    if key >= 48 and key <= 57:
+        return str(chr(key))
+    if int(key) in KEY_TO_SYMBOL:
+        return KEY_TO_SYMBOL[int(key)]
+    return str(chr(key))
+
+KEY_TO_SYMBOL = {
+    65379: "ins",
+    65535: "del",
+    65360: "home",
+    65367: "end",
+    65365: "pu",
+    65366: "pd",
+}
+    
+

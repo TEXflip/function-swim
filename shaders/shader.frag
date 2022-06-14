@@ -6,7 +6,10 @@ uniform float res = 0.5;
 uniform vec2 aspect_ratio;
 uniform vec3 camera_position = vec3(-10.0, 15.0, -20.0);
 uniform vec3 camera_target = vec3(0.0, 10.0, 0.0);
+uniform int render_mode = 0; // 0: classic ray marching, 1: ray marching optimized for functions
+uniform int fun_select = 0;
 
+uniform float world_scale = 1.;
 const int NUMBER_OF_STEPS = 128;
 const float SURF_DISTANCE = 0.01; // surface distance
 const float MAX_DISTANCE = 1000.0;
@@ -223,22 +226,27 @@ float weierstrass(vec2 c){
 
 float fun_selection(vec2 c){
     float f = 0.0;
+    c *= world_scale;
 
-    // f = sphere(c);
-    // f = rastrigin(c);
-    // f = ackley(c);
-    // f = griewank(c);
-    // f = rosenbrock(c);
-    // f = schwefel(c);
-    // f = bukin(c);
-    // f = drop_wave(c);
-    // f = eggholder(c);
-    // f = holder_table(c);
-    // f = shaffer(c);
-    // f = custom_copilot(c);
-    // f = shuberts(c);
-    // f = katsuura(c);
-    f = weierstrass(c);
+    // unfortunately GLSL doesn't support function pointers
+    // so we have to use switch statement :<
+    switch(fun_select){ 
+        case 0 : f = rastrigin(c); break;
+        case 1 : f = ackley(c); break;
+        case 2 : f = griewank(c); break;
+        case 3 : f = rosenbrock(c); break;
+        case 4 : f = schwefel(c); break;
+        case 5 : f = bukin(c); break;
+        case 6 : f = drop_wave(c); break;
+        case 7 : f = eggholder(c); break;
+        case 8 : f = holder_table(c); break;
+        case 9 : f = shaffer(c); break;
+        case 10 : f = custom_copilot(c); break;
+        case 11 : f = shuberts(c); break;
+        case 12 : f = katsuura(c); break;
+        case 13 : f = weierstrass(c); break;
+        default : f = sphere(c); break;
+    }
 
     return f;
 }
@@ -275,10 +283,7 @@ float sdBox( vec3 p, vec3 b)
 // map the world
 float map(in vec3 p)
 {
-    float plane = (p.y - fun_selection(p.xz) * exp(zoom*0.1));
-    // float sphere = sdSphere(p, vec3(0.0, 1.0, 0.0), 0.5);
-    // float d = min(plane,sphere);
-    return plane;
+    return (p.y - fun_selection(p.xz) * exp(zoom*0.1));
 }
 
 vec2 map_with_gradient(in vec3 p, in vec3 dir)
@@ -333,19 +338,26 @@ vec2 ray_march(in vec3 ro, in vec3 rd, int MAX_STEPS)
 
 vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
 {
-    float dist_origin = 0.0, min_dist = 10.; // distance origin
+    float dist_origin = 0.0, _step = 1., min_dist = 10.; // distance origin
+    float distance_to_closest = 0.;
+    float prec = 0.;
     vec3 col;
     
     for (int i = 0; i < MAX_STEPS; ++i)
     {
         vec3 curr_pos = ro + dist_origin * rd;
 
-        float distance_to_closest = map(curr_pos);
+        distance_to_closest = map(curr_pos) * _step * res;
 
-        float _step = distance_to_closest;
-        if (_step < 2.)
-            _step *= 0.1;
-        dist_origin += _step;
+
+        if (distance_to_closest < -SURF_DISTANCE) {
+            dist_origin = prec;
+            _step *= 0.5;
+            continue;
+        }
+
+        prec = dist_origin;
+        dist_origin += distance_to_closest;
 
         if (dist_origin < 5. && min_dist > distance_to_closest){
             min_dist = distance_to_closest;
@@ -357,22 +369,32 @@ vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
     return vec2(dist_origin, min_dist);
 }
 
+vec2 ray_march_selector(in vec3 ro, in vec3 rd, int MAX_STEPS)
+{
+    if (render_mode == 0)
+        return ray_march(ro, rd, MAX_STEPS);
+    else
+        return ray_march_for_function(ro, rd, MAX_STEPS);
+}
+
 float GetLight(vec3 p, vec3 n) {
     vec3 l = normalize(light_position - p);
     
     float dif = clamp(dot(n, l) * .5 + .5, 0., 1.);
 
     // Shadows Computation
-    vec2 rm_out = ray_march(p + n * SURF_DISTANCE * 2.01, l, 64);
+    // compute shadows
+    const float shd_f = 0.5; //shadow force
+    vec2 rm_out = ray_march_selector(p + n * SURF_DISTANCE * 2.01, l, 64);
     float d = rm_out.x;
     float min_dist = rm_out.y;
     if(d < length(light_position - p)) {
-        dif *= 0.65;
+        dif *= shd_f;
     }
     else {
-        dif *= 0.65+min(smoothstep(0, 1, min_dist*20.), (1.-0.65));
+        dif *= shd_f+min(smoothstep(0.,(1.-shd_f),min_dist*5.), (1.-shd_f));
     }
-    
+
     return dif;
 }
 
@@ -387,15 +409,15 @@ void main()
 
     vec3 rd = R(uv, ro, camera_target, 1.);
 
-    float dist = ray_march(ro, rd, NUMBER_OF_STEPS).x;
+    float dist = ray_march_selector(ro, rd, NUMBER_OF_STEPS).x;
 
     if(dist < MAX_DISTANCE) {
-    	vec3 p = ro + rd * dist;
+        vec3 p = ro + rd * dist;
         float f = fun_selection(p.xz);
         vec3 nor = get_normal(p);
 
         // light computation
-    	col = vec3(GetLight(p, nor)) * cm_viridis(f * color_range);
+        col = vec3(GetLight(p, nor)) * cm_viridis(f * color_range);
     }
 
     col = pow(col, vec3(.4545)); // gamma correction (very important)

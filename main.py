@@ -52,8 +52,32 @@ class FunctionRender(Example):
         self.click_position = np.array([0.0, 0.0])
         self.camera_position = program.get("camera_position", [0.0, 1.0, -2.0])
         self.camera_target = program.get("camera_target", [0.0, 1.0, 0.0])
+        self.render_mode = program.get("render_mode", 0)
         self.cm = CameraControl(self.camera_position, self.camera_target)
-        self.sc = ShaderControl([program["color_range"], program["res"]], ["<", ">", "pu", "pd"])
+        sc_dict = {
+            "color_range": {
+                "glsl": program["color_range"],
+                "symbol": [",", "."],
+                "type": "exp"
+            },
+            "res": {
+                "glsl": program["res"],
+                "symbol": ["pu", "pd"],
+                "type": "exp"
+            },
+            "world_scale": {
+                "glsl": program["world_scale"],
+                "symbol": ["home", "end"],
+                "type": "exp"
+            },
+            "fun_select": {
+                "glsl": program["fun_select"],
+                "symbol": "/",
+                "type": "switch",
+                "range": [0,14]
+            }
+        }
+        self.sc = ShaderControl(sc_dict)
         self.mouse = np.array([0.0, 0.0])
 
     def render(self, time: float, frame_time: float):
@@ -90,7 +114,7 @@ class FunctionRender(Example):
         if action == keys.ACTION_PRESS:
             if key == keys.SPACE:
                 self.cm.speed = 0.5
-                self.sc.set_speed(">", 1.5)
+                self.sc.set_speed(".", 1.5)
                 self.sc.set_speed("pu", 1.1)
             if key == keys.W:
                 self.cm.key_event("W")
@@ -100,21 +124,17 @@ class FunctionRender(Example):
                 self.cm.key_event("S")
             if key == keys.D:
                 self.cm.key_event("D")
-            if key == keys.PERIOD:
-                self.sc.key_event(">")
-            if key == keys.COMMA:
-                self.sc.key_event("<")
-            if key == keys.PAGE_UP:
-                self.sc.key_event("pu")
-            if key == keys.PAGE_DOWN:
-                self.sc.key_event("pd")
-                
+            if key == keys.F1:
+                self.render_mode.value = 0
+            if key == keys.F2:
+                self.render_mode.value = 1
+            self.sc.key_event(key)
 
             # Using modifiers (shift and ctrl)
 
-            if modifiers.shift:
+            if key == 65505:
                 self.cm.key_event("Shift_L")
-            if modifiers.ctrl:
+            if  key == 65507:
                 self.cm.key_event("Ctrl_L")
 
         # Key releases
@@ -130,14 +150,7 @@ class FunctionRender(Example):
                 self.cm.key_event("S", False)
             if key == keys.D:
                 self.cm.key_event("D", False)
-            if key == keys.PERIOD:
-                self.sc.key_event(">", False)
-            if key == keys.COMMA:
-                self.sc.key_event("<", False)
-            if key == keys.PAGE_UP:
-                self.sc.key_event("pu", False)
-            if key == keys.PAGE_DOWN:
-                self.sc.key_event("pd", False)
+            self.sc.key_event(key, False)
 
             if key == 65505:
                 self.cm.key_event("Shift_L", False)
