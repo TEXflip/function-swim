@@ -63,6 +63,12 @@ class FunctionRender(Example):
                 "symbol": "/",
                 "type": "switch",
                 "range": [0,14]
+            },
+            "render_mode": {
+                "glsl": program["render_mode"],
+                "symbol": ["num_0", "num_1", "num_2", "num_3"],
+                "type": "button",
+                "values": [0,1,2,3]
             }
         }
         self.sc = ShaderControl(sc_dict)
@@ -71,25 +77,19 @@ class FunctionRender(Example):
         # self.u_time.value = time
         self.vao.render()
         self.sc.update()
-        pass
-
 
     def mouse_drag_event(self, x, y, dx, dy):
         self.curr_position = self.last_position - abs(self.zoom.value)*(self.click_position - np.array([x, y]))
         self.mouse.value = tuple(np.array([self.curr_position[0] - self.window_size[0] / 2, self.curr_position[1] - self.window_size[1] / 2]) / np.array(self.window_size))
-        pass
 
     def mouse_press_event(self, x, y, button):
         self.click_position = np.array([x, y])
-        pass
 
     def mouse_release_event(self, x: int, y: int, button: int):
         self.last_position = self.curr_position
-        pass
     
     def mouse_scroll_event(self, x_offset, y_offet):
         self.zoom.value -= y_offet*abs(self.zoom.value)*0.1
-        pass
     
     def key_event(self, key, action, modifiers):
         keys = self.wnd.keys
@@ -98,14 +98,6 @@ class FunctionRender(Example):
         if action == keys.ACTION_PRESS:
             if key == keys.SPACE:
                 self.sc.set_all_speeds(1.5)
-            if key == keys.NUMPAD_0:
-                self.render_mode.value = 0
-            if key == keys.NUMPAD_1:
-                self.render_mode.value = 1
-            if key == keys.NUMPAD_2:
-                self.render_mode.value = 2
-            if key == keys.NUMPAD_3:
-                self.render_mode.value = 3
             self.sc.key_event(key)
 
         # Key releases

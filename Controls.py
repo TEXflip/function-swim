@@ -107,8 +107,12 @@ class ShaderControl:
         for k, v in self.control_dict.items():
             s = v["symbol"]
             if isinstance(s, list):
-                self.symbols_dict[s[0]] = {"type": v["type"], "key": k, "press": False, "action": "incr"}
-                self.symbols_dict[s[1]] = {"type": v["type"], "key": k, "press": False, "action": "decr"}
+                if v["type"] in ["exp", "lin"]:
+                    self.symbols_dict[s[0]] = {"type": v["type"], "key": k, "press": False, "action": "incr"}
+                    self.symbols_dict[s[1]] = {"type": v["type"], "key": k, "press": False, "action": "decr"}
+                elif v["type"] in ["button"]:
+                    for i, symb in enumerate(s):
+                        self.symbols_dict[symb] = {"type": v["type"], "key": k, "press": False, "value": v["values"][i]}
             elif isinstance(s, str):
                 self.symbols_dict[s] = {"type": v["type"], "key": k, "press": False, "action": None}
 
@@ -152,6 +156,14 @@ class ShaderControl:
         ctrl["value"] = r[0] + ((ctrl["value"] + 1) % (r[1]+1))
         ctrl["glsl"].value = ctrl["value"]
         symb["press"] = False
+    
+    def update_type_button(self, symbol):
+        symb = self.symbols_dict[symbol]
+        ctrl = self.control_dict[symb["key"]]
+        v = symb["value"]
+        ctrl["value"] = v
+        ctrl["glsl"].value = v
+        symb["press"] = False
 
     def update(self):
         for symbol in self.symbols_dict.keys():
@@ -169,6 +181,8 @@ def key_to_symbol(key):
         return str(chr(key)).upper()
     if key >= 48 and key <= 57:
         return str(chr(key))
+    if key >= 65456 and key <= 65465:
+        return "num_"+str(chr(key-65456+48))
     if int(key) in KEY_TO_SYMBOL:
         return KEY_TO_SYMBOL[int(key)]
     return str(chr(key))
