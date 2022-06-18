@@ -12,7 +12,7 @@ little tool to visualize in 3D optimization functions with GLSL
 - better shadows
 
 ## Requirements:
-- python < 3.8
+- python >= 3.7
 - moderngl-window
 - numpy
 
