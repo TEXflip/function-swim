@@ -2,11 +2,12 @@
 uniform float T = 0.;
 uniform float color_range = 0.1;
 uniform float zoom;
-uniform float res = 0.5;
+uniform float res = 0.5; // ray step size
+uniform float res2 = 0.1; // min distance before stop the ray = res2*SURF_DISTANCE
 uniform vec2 aspect_ratio;
 uniform vec3 camera_position = vec3(-10.0, 15.0, -20.0);
 uniform vec3 camera_target = vec3(0.0, 10.0, 0.0);
-uniform int render_mode = 0; // 0: classic ray marching, 1: ray marching optimized for functions
+uniform int render_mode = 1; // 0: classic ray marching, 1: ray marching optimized for functions
 uniform int fun_select = 0;
 
 uniform float world_scale = 1.;
@@ -315,33 +316,60 @@ vec3 get_normal(vec3 p){
 vec2 ray_march(in vec3 ro, in vec3 rd, int MAX_STEPS)
 {
     float dist_origin = 0.0, min_dist = 10.; // distance origin
-    vec3 col;
+    float distance_to_closest = 0.;
     
     for (int i = 0; i < MAX_STEPS; ++i)
     {
         vec3 curr_pos = ro + dist_origin * rd;
 
-        float distance_to_closest = map(curr_pos);
+        distance_to_closest = map(curr_pos);
 
         dist_origin += distance_to_closest * res;
 
-        if (dist_origin < 5. && min_dist > distance_to_closest){
+        if (min_dist > distance_to_closest){
             min_dist = distance_to_closest;
         }
 
-        if (abs(distance_to_closest) < SURF_DISTANCE*0.1 || dist_origin > MAX_DISTANCE) break;
+        if (abs(distance_to_closest) < SURF_DISTANCE*res2 || dist_origin > MAX_DISTANCE) break;
     }
 
     return vec2(dist_origin, min_dist);
 }
 
+vec3 shadow(in vec3 ro, in vec3 rd, float max_dist)
+{
+    float dist_origin = 0.0, min_dist = 1000000., min_dist_orig = 1000000.; // distance origin
+    float distance_to_closest = 0.;
+    
+    for (int i = 0; i < 128; ++i)
+    {
+        vec3 curr_pos = ro + dist_origin * rd;
+
+        distance_to_closest = map(curr_pos);
+
+        if (i>1 && min_dist > distance_to_closest){
+            min_dist = distance_to_closest;
+            min_dist_orig = dist_origin;
+        }
+        dist_origin += distance_to_closest * res;
+
+
+        if(dist_origin > max_dist)
+            return vec3(1., min_dist, min_dist_orig); // no shadow
+
+        if (distance_to_closest < SURF_DISTANCE*0.1)
+            return vec3(0., 0., 0.); // shadow
+            
+    }
+
+    return vec3(1., min_dist, min_dist_orig); // this should never happen
+}
 
 vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
 {
     float dist_origin = 0.0, _step = 1., min_dist = 10.; // distance origin
     float distance_to_closest = 0.;
     float prec = 0.;
-    vec3 col;
     
     for (int i = 0; i < MAX_STEPS; ++i)
     {
@@ -363,7 +391,7 @@ vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
             min_dist = distance_to_closest;
         }
 
-        if (abs(distance_to_closest) < SURF_DISTANCE || dist_origin > MAX_DISTANCE) break;
+        if (abs(distance_to_closest) < SURF_DISTANCE*res2 || dist_origin > MAX_DISTANCE) break;
     }
 
     return vec2(dist_origin, min_dist);
@@ -379,20 +407,23 @@ vec2 ray_march_selector(in vec3 ro, in vec3 rd, int MAX_STEPS)
 
 float GetLight(vec3 p, vec3 n) {
     vec3 l = normalize(light_position - p);
+    float max_dist = length(light_position - p);
     
     float dif = clamp(dot(n, l) * .5 + .5, 0., 1.);
 
     // Shadows Computation
     // compute shadows
     const float shd_f = 0.5; //shadow force
-    vec2 rm_out = ray_march_selector(p + n * SURF_DISTANCE * 2.01, l, 64);
-    float d = rm_out.x;
+    vec3 rm_out = shadow(p + n * SURF_DISTANCE * 2.01, l, max_dist);
+    float shadow = rm_out.x;
     float min_dist = rm_out.y;
-    if(d < length(light_position - p)) {
-        dif *= shd_f;
+    float min_dist_orig = rm_out.z;
+    if(shadow > 0.) { // no shadow
+        // dif *= shd_f+min(smoothstep(0.,(1.-shd_f),min_dist*5.), (1.-shd_f));
+        dif *= shd_f + smoothstep(0.01, 0.04, min_dist) * (1. - shd_f);
     }
     else {
-        dif *= shd_f+min(smoothstep(0.,(1.-shd_f),min_dist*5.), (1.-shd_f));
+        dif *= shd_f;
     }
 
     return dif;

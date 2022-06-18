@@ -65,6 +65,11 @@ class FunctionRender(Example):
                 "symbol": ["pu", "pd"],
                 "type": "exp"
             },
+            "res2": {
+                "glsl": program["res2"],
+                "symbol": ["ins", "del"],
+                "type": "exp"
+            },
             "world_scale": {
                 "glsl": program["world_scale"],
                 "symbol": ["home", "end"],
@@ -160,5 +165,3 @@ class FunctionRender(Example):
 
 if __name__ == '__main__':
     FunctionRender.run()
-
-    
