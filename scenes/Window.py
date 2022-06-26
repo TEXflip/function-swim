@@ -3,7 +3,7 @@ import random
 import moderngl_window as mglw
 
 
-class Example(mglw.WindowConfig):
+class Window(mglw.WindowConfig):
     gl_version = (3, 3)
     title = "ModernGL Example"
     window_size = (1280, 720)
@@ -17,7 +17,7 @@ class Example(mglw.WindowConfig):
     def run(cls):
         mglw.run_window_config(cls)
 
-class EmptyWindow(Example):
+class EmptyWindow(Window):
     gl_version = (3, 3)
     title = "Empty Window"
     window_size = (1280, 720)

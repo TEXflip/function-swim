@@ -230,27 +230,7 @@ float weierstrass(vec2 c){
 float fun_selection(vec2 c){
     float f = 0.0;
     c *= world_scale;
-
-    // unfortunately GLSL doesn't support function pointers
-    // so we have to use switch statement :<
-    switch(fun_select){ 
-        case 0 : f = rastrigin(c); break;
-        case 1 : f = ackley(c); break;
-        case 2 : f = griewank(c); break;
-        case 3 : f = rosenbrock(c); break;
-        case 4 : f = schwefel(c); break;
-        case 5 : f = bukin(c); break;
-        case 6 : f = drop_wave(c); break;
-        case 7 : f = eggholder(c); break;
-        case 8 : f = holder_table(c); break;
-        case 9 : f = shaffer(c); break;
-        case 10 : f = custom_copilot(c); break;
-        case 11 : f = shuberts(c); break;
-        case 12 : f = katsuura(c); break;
-        case 13 : f = weierstrass(c); break;
-        default : f = sphere(c); break;
-    }
-
+    f = rastrigin(c);
     return f;
 }
 
@@ -298,19 +278,6 @@ float map(in vec3 p)
     float pop_d = population_map(p);
     return min(pop_d, f);
 }
-
-vec2 map_with_gradient(in vec3 p, in vec3 dir)
-{
-    float d1 = (p.y - fun_selection(p.xz) * exp(zoom*0.1));
-    vec3 next = p+dir*SURF_DISTANCE*0.5;
-    float d2 = (p.y - fun_selection(next.xz) * exp(zoom*0.1));
-
-    float grad = (d2-d1)/(SURF_DISTANCE*0.5);
-    // next.y -= d2;
-
-    return vec2(d1, grad);
-}
-
 
 vec3 get_normal(vec3 p){
 	//sampling around the point

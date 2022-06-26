@@ -1,8 +1,8 @@
 import numpy as np
-from Window import Example
-from Controls import CameraControl, ShaderControl
+from scenes.Window import Window
+from Controls import ShaderControl
 
-class FunctionRender(Example):
+class FunctionRender2D(Window):
     gl_version = (3, 3)
     window_size = (1920, 1080)
 
@@ -106,9 +106,3 @@ class FunctionRender(Example):
                 self.sc.set_all_speeds(1.0)
             self.sc.key_event(key, False)
 
-
-
-if __name__ == '__main__':
-    FunctionRender.run()
-
-    
