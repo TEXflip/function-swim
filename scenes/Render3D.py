@@ -1,48 +1,44 @@
 import numpy as np
+from shaders.functions import FUNCTIONS
 from scenes.Window import Window
 from Controls import CameraControl, ShaderControl
+with open("./shaders/shader.vert") as f:
+    VERTEX_SHADER = f.read()
 
 class FunctionRender3D(Window):
     gl_version = (3, 3)
     window_size = (1920, 1080)
+    fun_keys = list(FUNCTIONS.keys())
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.vaos = []
-
-        with open("./shaders/shader.vert") as f:
-            VERTEX_SHADER = f.read()
-        with open("./shaders/shader.frag") as f:
-            FRAGMENT_SHADER = f.read()
-
         program = self.ctx.program(
             vertex_shader=VERTEX_SHADER,
-            fragment_shader=FRAGMENT_SHADER
+            fragment_shader=self.compile_shader("./shaders/shader_compile.frag", "rosenbrock")
         )
+        self.k = 0
 
-        vertex_data = np.array([
-            # x,    y,   z,    u,   v
-            -1.0, -1.0, 0.0,  0.0, 0.0,
-            +1.0, -1.0, 0.0,  1.0, 0.0,
-            -1.0, +1.0, 0.0,  0.0, 1.0,
-            +1.0, +1.0, 0.0,  1.0, 1.0,
-        ]).astype(np.float32)
+        self.load_shader(program)
+        self.bind_controls(program)
+    
+    def compile_shader(self, file, fun):
+        with open(file) as f:
+            shader = f.read()
+        func_dict = FUNCTIONS[fun]
+        center = f"x+={func_dict['center'][0]};y+={func_dict['center'][1]};\n"
+        normalize = f"f*={func_dict['normalize']};" if isinstance(func_dict['normalize'], (float, int)) else func_dict['normalize']
+        shader = shader.replace("@", "\n" + center + func_dict["function"] + normalize)
+        return shader
 
-        content = [(
-            self.ctx.buffer(vertex_data),
-            '3f 2f',
-            'in_vert', 'in_uv'
-        )]
+    def render(self, time: float, frame_time: float):
+        # self.u_time.value = time
+        self.cm.update()
+        self.sc.update()
+        self.vao.render()
+        self.cm.mouse_update(self.mouse)
 
-        idx_data = np.array([
-            0, 1, 2,
-            1, 2, 3
-        ]).astype(np.int32)
-
-        idx_buffer = self.ctx.buffer(idx_data)
-        self.vao = self.ctx.vertex_array(program, content, idx_buffer)
+    def bind_controls(self, program):
         program["aspect_ratio"].value = tuple(np.array(self.window_size)/min(self.window_size))
-
         self.u_time = program.get("T", 0.0)
 
         # User Controls Variables
@@ -75,22 +71,36 @@ class FunctionRender3D(Window):
                 "symbol": ["home", "end"],
                 "type": "exp"
             },
-            "fun_select": {
-                "glsl": program["fun_select"],
-                "symbol": "/",
-                "type": "switch",
-                "range": [0,14]
-            }
+            # "fun_select": {
+            #     "glsl": program["fun_select"],
+            #     "symbol": "/",
+            #     "type": "switch",
+            #     "range": [0,14]
+            # }
         }
         self.sc = ShaderControl(sc_dict)
         self.mouse = np.array([0.0, 0.0])
 
-    def render(self, time: float, frame_time: float):
-        # self.u_time.value = time
-        self.cm.update()
-        self.sc.update()
-        self.vao.render()
-        self.cm.mouse_update(self.mouse)
+    def load_shader(self, program):
+        vertex_data = np.array([
+            # x,    y,   z,    u,   v
+            -1.0, -1.0, 0.0,  0.0, 0.0,
+            +1.0, -1.0, 0.0,  1.0, 0.0,
+            -1.0, +1.0, 0.0,  0.0, 1.0,
+            +1.0, +1.0, 0.0,  1.0, 1.0,
+        ]).astype(np.float32)
+        content = [(
+            self.ctx.buffer(vertex_data),
+            '3f 2f',
+            'in_vert', 'in_uv'
+        )]
+        idx_data = np.array([
+            0, 1, 2,
+            1, 2, 3
+        ]).astype(np.int32)
+        idx_buffer = self.ctx.buffer(idx_data)
+        self.vao = self.ctx.vertex_array(program, content, idx_buffer)
+        self.bind_controls(program)
 
     def mouse_drag_event(self, x, y, dx, dy):
         # self.curr_position = self.last_position - (self.click_position - np.array([x, y]))
@@ -133,6 +143,14 @@ class FunctionRender3D(Window):
                 self.render_mode.value = 0
             if key == keys.F2:
                 self.render_mode.value = 1
+            if key == keys.TAB:
+                self.k = (self.k + 1) % len(self.fun_keys)
+                program = self.ctx.program(
+                    vertex_shader=VERTEX_SHADER,
+                    fragment_shader=self.compile_shader("./shaders/shader_compile.frag", self.fun_keys[self.k])
+                )
+                self.load_shader(program)
+                self.bind_controls(program)
             self.sc.key_event(key)
 
             # Using modifiers (shift and ctrl)
