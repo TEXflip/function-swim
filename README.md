@@ -5,8 +5,8 @@
 little tool to visualize in 3D optimization functions with GLSL 
 
 ## Roadmap:
-- loadable shaders
-- render function points in the scene
+- <s>loadable shaders</s>
+- <s>render function points in the scene</s>
 - bind population based optimization algorithms rendering the population over the optimizatin process
 - Orthographic projection
 
