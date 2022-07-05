@@ -1,4 +1,9 @@
 #version 430
+#define FLT_MAX 3.402823466e+38
+#define FLT_MIN 1.175494351e-38
+#define DBL_MAX 1.7976931348623158e+308
+#define DBL_MIN 2.2250738585072014e-308
+
 uniform float T = 0.;
 uniform float color_range = 0.1;
 uniform float zoom = 1.;
@@ -78,20 +83,42 @@ float sdBox( vec3 p, vec3 b)
   return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
 
-float population_map(vec3 p) {
-    float d = sdSphere(p, population[0], 0.1);
-    for (int i = 1; i < pop_size; i++) {
-        d = min(d, sdSphere(p, population[i], 0.1));
+float sphere_intersection(vec3 ro, vec3 rd, vec3 center, float r) {
+    // float a = dot(rd, rd);
+    float b = 2. * dot(ro, rd) - 2. * dot(rd, center);
+    if (b > 0.)
+        return FLT_MAX;
+
+    float c = dot(ro, ro) - 2. * dot(ro, center) - r*r + dot(center, center);
+    float discr = b * b - 4. * c;
+
+    if (discr < 0.)
+        return FLT_MAX;
+
+    return -(b + sqrt(discr)) * 0.5;
+}
+
+vec4 population_map(vec3 ro, vec3 rd) {
+    float min_dist = FLT_MAX;
+    int min_pop = 0;
+    for (int i = 0; i < pop_size; i++){
+        float dist = sphere_intersection(ro, rd, population[i], 0.1);
+        if (min_dist > dist){
+            min_dist = dist;
+            min_pop = i;
+        }
     }
-    return d;
+    if (min_dist < FLT_MAX){
+        vec3 norm = normalize((ro + min_dist * rd) - population[min_pop]);
+        return vec4(norm, min_dist);
+    }
+    return vec4(-1.);
 }
 
 // map the world
 float map(in vec3 p)
 {
-    float f = (p.y - fun_selection(p.xz) * exp(zoom*0.1));
-    float pop_d = population_map(p);
-    return min(pop_d, f);
+    return (p.y - fun_selection(p.xz) * exp(zoom*0.1));
 }
 
 vec2 map_with_gradient(in vec3 p, in vec3 dir)
@@ -118,31 +145,6 @@ vec3 get_normal(vec3 p){
 	return normalize(n);
 }
 
-// ro is the ray origin
-// rd is the ray direction
-vec2 ray_march(in vec3 ro, in vec3 rd, int MAX_STEPS)
-{
-    float dist_origin = 0.0, min_dist = 10.; // distance origin
-    float distance_to_closest = 0.;
-    
-    for (int i = 0; i < MAX_STEPS; ++i)
-    {
-        vec3 curr_pos = ro + dist_origin * rd;
-
-        distance_to_closest = map(curr_pos);
-
-        dist_origin += distance_to_closest * res;
-
-        if (min_dist > distance_to_closest){
-            min_dist = distance_to_closest;
-        }
-
-        if (abs(distance_to_closest) < SURF_DISTANCE*res2 || dist_origin > MAX_DISTANCE) break;
-    }
-
-    return vec2(dist_origin, min_dist);
-}
-
 vec3 shadow(in vec3 ro, in vec3 rd, float max_dist)
 {
     float dist_origin = 0.0, min_dist = 1000000., min_dist_orig = 1000000.; // distance origin
@@ -160,7 +162,6 @@ vec3 shadow(in vec3 ro, in vec3 rd, float max_dist)
         }
         dist_origin += distance_to_closest * res;
 
-
         if(dist_origin > max_dist)
             return vec3(1., min_dist, min_dist_orig); // no shadow
 
@@ -172,9 +173,30 @@ vec3 shadow(in vec3 ro, in vec3 rd, float max_dist)
     return vec3(1., min_dist, min_dist_orig); // this should never happen
 }
 
-vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
+// ro is the ray origin
+// rd is the ray direction
+float ray_march(in vec3 ro, in vec3 rd, int MAX_STEPS)
 {
-    float dist_origin = 0.0, _step = 1., min_dist = 10.; // distance origin
+    float dist_origin = 0.0; // distance origin
+    float distance_to_closest = 0.;
+    
+    for (int i = 0; i < MAX_STEPS; ++i)
+    {
+        vec3 curr_pos = ro + dist_origin * rd;
+
+        distance_to_closest = map(curr_pos);
+
+        dist_origin += distance_to_closest * res;
+
+        if (abs(distance_to_closest) < SURF_DISTANCE*res2 || dist_origin > MAX_DISTANCE) break;
+    }
+
+    return dist_origin;
+}
+
+float ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
+{
+    float dist_origin = 0.0, _step = 1.; // distance origin
     float distance_to_closest = 0.;
     float prec = 0.;
     
@@ -194,17 +216,13 @@ vec2 ray_march_for_function(in vec3 ro, in vec3 rd, int MAX_STEPS)
         prec = dist_origin;
         dist_origin += distance_to_closest;
 
-        if (dist_origin < 5. && min_dist > distance_to_closest){
-            min_dist = distance_to_closest;
-        }
-
         if (abs(distance_to_closest) < SURF_DISTANCE*res2 || dist_origin > MAX_DISTANCE) break;
     }
 
-    return vec2(dist_origin, min_dist);
+    return dist_origin;
 }
 
-vec2 ray_march_selector(in vec3 ro, in vec3 rd, int MAX_STEPS)
+float ray_march_selector(in vec3 ro, in vec3 rd, int MAX_STEPS)
 {
     if (render_mode == 0)
         return ray_march(ro, rd, MAX_STEPS);
@@ -244,16 +262,26 @@ void main()
     vec3 col = vec3(0);
 
     vec3 rd = R(uv, ro, camera_target, 1.);
+    float dist = FLT_MAX;
 
-    float dist = ray_march_selector(ro, rd, NUMBER_OF_STEPS).x;
+    vec4 norm_dist = population_map(ro, rd);
+    dist = norm_dist.w;
 
-    if(dist < MAX_DISTANCE) {
+    if (dist < 0.){
+        dist = ray_march_selector(ro, rd, NUMBER_OF_STEPS);
+
+        if(dist < MAX_DISTANCE) {
+            vec3 p = ro + rd * dist;
+            float f = fun_selection(p.xz);
+            vec3 nor = get_normal(p);
+
+            // light computation
+            col = vec3(GetLight(p, nor)) * cm_viridis(f * color_range);
+        }
+    }
+    else{
         vec3 p = ro + rd * dist;
-        float f = fun_selection(p.xz);
-        vec3 nor = get_normal(p);
-
-        // light computation
-        col = vec3(GetLight(p, nor)) * cm_viridis(f * color_range);
+        col = vec3(GetLight(p, norm_dist.xyz)) * vec3(0.,0.4,1.);
     }
 
     col = pow(col, vec3(.4545)); // gamma correction (very important)

@@ -42,7 +42,6 @@ class FunctionRender3D(Window):
         self.u_time = program.get("T", 0.0)
 
         # User Controls Variables
-        # self.mouse = program.get("mouse", [0.0,0.0])
         self.zoom = program.get("zoom", 1.)
         self.last_position = np.array(self.window_size)/2
         self.click_position = np.array([0.0, 0.0])
@@ -51,11 +50,11 @@ class FunctionRender3D(Window):
         self.render_mode = program.get("render_mode", 0)
         self.cm = CameraControl(self.camera_position, self.camera_target)
         sc_dict = {
-            "color_range": {
-                "glsl": program["color_range"],
-                "symbol": [",", "."],
-                "type": "exp"
-            },
+            # "color_range": {
+            #     "glsl": program["color_range"],
+            #     "symbol": [",", "."],
+            #     "type": "exp"
+            # },
             "res": {
                 "glsl": program["res"],
                 "symbol": ["pu", "pd"],
@@ -70,13 +69,7 @@ class FunctionRender3D(Window):
                 "glsl": program["world_scale"],
                 "symbol": ["home", "end"],
                 "type": "exp"
-            },
-            # "fun_select": {
-            #     "glsl": program["fun_select"],
-            #     "symbol": "/",
-            #     "type": "switch",
-            #     "range": [0,14]
-            # }
+            }
         }
         self.sc = ShaderControl(sc_dict)
         self.mouse = np.array([0.0, 0.0])
@@ -107,20 +100,16 @@ class FunctionRender3D(Window):
         # self.mouse = tuple(2*np.array([self.curr_position[0] - self.window_size[0] / 2, self.curr_position[1] - self.window_size[1] / 2]) / np.array(self.window_size))
         self.mouse = self.click_position - np.array([x, y])
         self.mouse = self.mouse / np.array(self.window_size)
-        pass
 
     def mouse_press_event(self, x, y, button):
         self.click_position = np.array([x, y])
-        pass
 
     def mouse_release_event(self, x: int, y: int, button: int):
         # self.last_position = self.curr_position
         self.mouse = np.array([0.0, 0.0])
-        pass
     
     def mouse_scroll_event(self, x_offset, y_offet):
         self.zoom.value += y_offet
-        pass
     
     def key_event(self, key, action, modifiers):
         keys = self.wnd.keys
