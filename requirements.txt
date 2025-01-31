@@ -1,2 +1,2 @@
-moderngl-window~=5.8.2 
+moderngl-window~=2.4.6
 numpy~=1.24.1
